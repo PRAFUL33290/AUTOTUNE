@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comprendre l’Auto-Tune</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <main class="container">
+      <article class="article-card">
+        <header class="hero">
+          <p class="eyebrow">Guide complet</p>
+          <h1>🎤 Comprendre l’Auto-Tune : fonctionnement, évolution et utilisation en live</h1>
+          <p class="lead">
+            Depuis son apparition, l’Auto-Tune a transformé la manière dont la voix est utilisée en musique : correction discrète,
+            effet artistique assumé, ou signature sonore instantanément reconnaissable.
+          </p>
+        </header>
+
+        <section>
+          <h2>## Introduction</h2>
+          <p>
+            À la fois outil de correction discret et effet artistique assumé, l’Auto-Tune est aujourd’hui omniprésent dans de
+            nombreux styles musicaux. Mais comment fonctionne-t-il réellement ? Pourquoi certains micros provoquent-ils plus de
+            larsen ? Et surtout, comment l’utiliser en live sans catastrophe ?
+          </p>
+        </section>
+
+        <section>
+          <h2>🔧 Comment fonctionne l’Auto-Tune ?</h2>
+          <p>L’Auto-Tune est un <strong>processeur audio</strong> qui corrige la hauteur (pitch) d’une voix.</p>
+
+          <h3>⚙️ Le principe de base</h3>
+          <ol>
+            <li>
+              <strong>Analyse du signal vocal :</strong>
+              le logiciel détecte la fréquence de la voix en temps réel et identifie la note chantée.
+            </li>
+            <li>
+              <strong>Comparaison avec une gamme :</strong>
+              on définit une tonalité (ex : Do majeur), puis le logiciel compare la note chantée avec les notes autorisées.
+            </li>
+            <li>
+              <strong>Correction automatique :</strong>
+              si la note est fausse, elle est ajustée vers la note la plus proche.
+              <ul>
+                <li>Correction lente → rendu naturel</li>
+                <li>Correction rapide → effet robotique (style trap/rap)</li>
+              </ul>
+            </li>
+          </ol>
+
+          <h3>🎛️ Les paramètres clés</h3>
+          <div class="chip-grid">
+            <span>Retune Speed : vitesse de correction</span>
+            <span>Humanize : conserve un côté naturel</span>
+            <span>Flex Tune : tolérance avant correction</span>
+            <span>Formant : texture vocale sans changer la note</span>
+          </div>
+        </section>
+
+        <section>
+          <h2>🔊 Pourquoi y a-t-il du larsen avec certains micros ?</h2>
+          <p>
+            Le larsen (feedback) est ce sifflement aigu désagréable qu’on entend parfois sur scène. Sa cause principale est une
+            <strong>boucle audio</strong> : le micro capte le son, le son est amplifié, puis recapté à nouveau jusqu’à emballement.
+          </p>
+
+          <h3>🎙️ Pourquoi certains micros sont plus sensibles ?</h3>
+          <ol>
+            <li><strong>Directivité :</strong> cardioïde = moins de larsen, omnidirectionnel = plus de larsen.</li>
+            <li><strong>Qualité :</strong> les micros bas de gamme filtrent moins bien les fréquences problématiques.</li>
+            <li><strong>Gain :</strong> un niveau d’entrée trop élevé augmente fortement le risque.</li>
+            <li><strong>Position :</strong> se placer face aux enceintes est la situation la plus risquée.</li>
+          </ol>
+
+          <aside class="note">
+            <h4>⚠️ Lien avec l’Auto-Tune</h4>
+            <ul>
+              <li>Il peut accentuer certaines fréquences.</li>
+              <li>Un signal plus “propre” peut parfois devenir plus sensible au feedback.</li>
+            </ul>
+          </aside>
+        </section>
+
+        <section>
+          <h2>📈 L’évolution de l’Auto-Tune</h2>
+          <div class="timeline">
+            <div>
+              <h3>🧪 Début (années 1990)</h3>
+              <p>Créé pour corriger discrètement les voix, avec une utilisation essentiellement en studio.</p>
+            </div>
+            <div>
+              <h3>🚀 Explosion médiatique</h3>
+              <p>La correction extrême devient populaire, puis l’effet robotique s’impose comme un style.</p>
+            </div>
+            <div>
+              <h3>🎤 Modernité</h3>
+              <p>Usage en temps réel, intégré aux logiciels, plugins et pédales, pour corriger et créer une identité sonore.</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>🎶 Utiliser l’Auto-Tune en live</h2>
+
+          <h3>🎛️ Le matériel nécessaire</h3>
+          <ul>
+            <li>Micro de bonne qualité</li>
+            <li>Interface audio ou pédale Auto-Tune</li>
+            <li>Ordinateur ou processeur dédié</li>
+            <li>Logiciel ou plugin temps réel</li>
+          </ul>
+
+          <h3>⚙️ Les étapes</h3>
+          <ol>
+            <li>Définir la tonalité du morceau.</li>
+            <li>Régler la latence (très important).</li>
+            <li>Ajuster la correction (live = souvent plus naturel que studio).</li>
+            <li>Tester tout le système avant le concert.</li>
+          </ol>
+
+          <h3>🔥 Astuces pro</h3>
+          <ul>
+            <li>Toujours avoir un <strong>plan B</strong> sans Auto-Tune.</li>
+            <li>Utiliser un <strong>anti-larsen</strong> (EQ ou gate).</li>
+            <li>Privilégier un retour casque plutôt qu’enceintes si possible.</li>
+            <li>Ne pas abuser de l’effet pour éviter la fatigue auditive.</li>
+          </ul>
+        </section>
+
+        <section class="conclusion">
+          <h2>🎯 Conclusion</h2>
+          <p>
+            L’Auto-Tune est bien plus qu’un simple correcteur de fausses notes. C’est un instrument moderne, capable de
+            transformer une voix et de définir un style musical. Bien utilisé, il devient invisible… ou totalement iconique.
+          </p>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>
