@@ -5,6 +5,7 @@
     --accent-color: #4a90e2;
     --record-color: #e74c3c;
     --play-color: #2ecc71;
+    --process-color: #9b59b6;
     --border-radius: 8px;
 }
 
@@ -17,6 +18,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    padding: 16px;
 }
 
 .autotune-container {
@@ -25,7 +27,7 @@ body {
     border-radius: var(--border-radius);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     width: 100%;
-    max-width: 450px;
+    max-width: 560px;
 }
 
 h1 {
@@ -90,6 +92,11 @@ h2 {
     animation: pulse 1.5s infinite;
 }
 
+.btn.process {
+    background-color: var(--process-color);
+    color: white;
+}
+
 .btn.play {
     background-color: var(--play-color);
     color: white;
@@ -107,18 +114,25 @@ h2 {
 }
 
 .playback-controls {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
-}
-
-.playback-controls .btn {
-    flex: 1;
 }
 
 .indicator {
     color: var(--record-color);
     font-size: 14px;
     font-weight: bold;
+}
+
+.status {
+    margin: 0;
+    font-size: 14px;
+    color: #d4daf3;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 10px;
 }
 
 .hidden {
@@ -177,4 +191,10 @@ span#gainValue, span#speedValue {
     0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
     50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+@media (max-width: 640px) {
+    .playback-controls {
+        grid-template-columns: 1fr;
+    }
 }
