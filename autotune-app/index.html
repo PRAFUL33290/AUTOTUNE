@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Autotune Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="autotune-container">
+        <h1>🎙️ Autotune Vocal</h1>
+
+        <div class="controls-section">
+            <div class="record-container">
+                <button id="recordBtn" class="btn record">🔴 Enregistrer</button>
+                <div id="recordingIndicator" class="indicator hidden">Enregistrement en cours...</div>
+            </div>
+
+            <div class="playback-controls">
+                <button id="playBtn" class="btn play" disabled>▶️ Lecture Tunée</button>
+                <button id="stopBtn" class="btn stop" disabled>⏹️ Stop</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>Réglages</h2>
+
+            <div class="setting-group">
+                <label for="scaleSelect">Gamme :</label>
+                <select id="scaleSelect">
+                    <option value="chromatic">Chromatique (Défaut)</option>
+                    <option value="major">Majeure</option>
+                    <option value="minor">Mineure</option>
+                    <option value="pentatonic">Pentatonique</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label for="gainSlider">Gain du retour (Volume) :</label>
+                <div class="slider-container">
+                    <input type="range" id="gainSlider" min="0" max="2" step="0.1" value="1">
+                    <span id="gainValue">1.0</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label for="retuneSpeed">Vitesse de l'autotune :</label>
+                <div class="slider-container">
+                    <input type="range" id="retuneSpeed" min="0" max="1" step="0.01" value="0.5">
+                    <span id="speedValue">50%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="export-section">
+            <a id="downloadLink" class="btn export hidden" download="vocal_autotuned.wav">💾 Télécharger l'audio tuné</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
