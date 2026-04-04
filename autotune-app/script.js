@@ -1,8 +1,9 @@
-// --- Elements de l'interface ---
 const recordBtn = document.getElementById('recordBtn');
 const recordingIndicator = document.getElementById('recordingIndicator');
 const playBtn = document.getElementById('playBtn');
 const stopBtn = document.getElementById('stopBtn');
+const processBtn = document.getElementById('processBtn');
+const statusText = document.getElementById('statusText');
 const scaleSelect = document.getElementById('scaleSelect');
 const gainSlider = document.getElementById('gainSlider');
 const gainValue = document.getElementById('gainValue');
@@ -10,271 +11,338 @@ const retuneSpeedSlider = document.getElementById('retuneSpeed');
 const speedValue = document.getElementById('speedValue');
 const downloadLink = document.getElementById('downloadLink');
 
-// --- Variables Audio ---
 let audioContext;
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBlob;
+let tunedAudioBlob;
+let tunedAudioBuffer;
 let sourceNode;
 let gainNode;
 let isRecording = false;
 let isPlaying = false;
 
-// --- Mise à jour de l'UI des sliders ---
-gainSlider.addEventListener('input', (e) => {
-    gainValue.textContent = parseFloat(e.target.value).toFixed(1);
-    if (gainNode) {
-        gainNode.gain.value = parseFloat(e.target.value);
-    }
-});
+const FRAME_SIZE = 2048;
+const HOP_SIZE = 512;
 
-retuneSpeedSlider.addEventListener('input', (e) => {
-    speedValue.textContent = Math.round(e.target.value * 100) + '%';
-});
+const SCALE_CLASSES = {
+  chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  major: [0, 2, 4, 5, 7, 9, 11],
+  minor: [0, 2, 3, 5, 7, 8, 10],
+  pentatonic: [0, 2, 4, 7, 9],
+};
 
-// --- Initialisation AudioContext ---
+function setStatus(message) {
+  statusText.textContent = message;
+}
+
 function initAudio() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
 }
 
-// --- Logique d'enregistrement ---
-recordBtn.addEventListener('click', async () => {
-    if (isRecording) {
-        stopRecording();
-    } else {
-        startRecording();
-    }
-});
-
-async function startRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
-        };
-
-        mediaRecorder.onstop = () => {
-            recordedAudioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            const url = URL.createObjectURL(recordedAudioBlob);
-
-            // Préparer le lien de téléchargement (brut pour l'instant)
-            downloadLink.href = url;
-            downloadLink.classList.remove('hidden');
-
-            // Activer le bouton de lecture
-            playBtn.disabled = false;
-        };
-
-        mediaRecorder.start();
-        isRecording = true;
-
-        // UI updates
-        recordBtn.textContent = '⬛ Stopper l\'enregistrement';
-        recordBtn.classList.add('recording');
-        recordingIndicator.classList.remove('hidden');
-        playBtn.disabled = true;
-        stopBtn.disabled = true;
-        downloadLink.classList.add('hidden');
-
-    } catch (err) {
-        console.error("Erreur d'accès au microphone:", err);
-        alert("Impossible d'accéder au microphone. Veuillez autoriser l'accès.");
-    }
-}
-
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        // Couper le flux du micro
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-    }
-    isRecording = false;
-
-    // UI updates
-    recordBtn.textContent = '🔴 Nouvel Enregistrement';
-    recordBtn.classList.remove('recording');
-    recordingIndicator.classList.add('hidden');
-}
-
-// --- Logique de lecture (Temporaire, sans autotune) ---
-playBtn.addEventListener('click', async () => {
-    if (!recordedAudioBlob || isPlaying) return;
-    initAudio();
-
-    try {
-        const arrayBuffer = await recordedAudioBlob.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        playAudioBuffer(audioBuffer);
-    } catch (err) {
-        console.error("Erreur lors de la lecture:", err);
-    }
-});
-
-stopBtn.addEventListener('click', () => {
-    if (sourceNode && isPlaying) {
-        sourceNode.stop();
-        resetPlaybackUI();
-    }
-});
-
-function playAudioBuffer(buffer) {
-    sourceNode = audioContext.createBufferSource();
-    sourceNode.buffer = buffer;
-
-    // Gain Node pour le contrôle du volume du retour
-    gainNode = audioContext.createGain();
-    gainNode.gain.value = parseFloat(gainSlider.value);
-
-    // Connexion basique (Source -> Gain -> Destination)
-    sourceNode.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    sourceNode.onended = () => {
-        resetPlaybackUI();
-    };
-
-    sourceNode.start(0);
-    isPlaying = true;
-
-    // UI updates
-    playBtn.disabled = true;
-    stopBtn.disabled = false;
-    recordBtn.disabled = true;
+function setProcessingState(isProcessing) {
+  processBtn.disabled = isProcessing || !recordedAudioBlob;
+  playBtn.disabled = isProcessing || !tunedAudioBuffer;
+  stopBtn.disabled = true;
+  recordBtn.disabled = isProcessing;
 }
 
 function resetPlaybackUI() {
-    isPlaying = false;
+  isPlaying = false;
+  playBtn.disabled = !tunedAudioBuffer;
+  stopBtn.disabled = true;
+  recordBtn.disabled = false;
+}
+
+gainSlider.addEventListener('input', (e) => {
+  const value = parseFloat(e.target.value);
+  gainValue.textContent = value.toFixed(1);
+  if (gainNode) {
+    gainNode.gain.value = value;
+  }
+});
+
+retuneSpeedSlider.addEventListener('input', (e) => {
+  speedValue.textContent = `${Math.round(parseFloat(e.target.value) * 100)}%`;
+});
+
+recordBtn.addEventListener('click', () => {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+});
+
+playBtn.addEventListener('click', () => {
+  if (!tunedAudioBuffer || isPlaying) {
+    return;
+  }
+
+  initAudio();
+  playAudioBuffer(tunedAudioBuffer);
+});
+
+stopBtn.addEventListener('click', () => {
+  if (sourceNode && isPlaying) {
+    sourceNode.stop();
+    resetPlaybackUI();
+  }
+});
+
+processBtn.addEventListener('click', async () => {
+  if (!recordedAudioBlob) {
+    return;
+  }
+
+  initAudio();
+  setProcessingState(true);
+  setStatus('Traitement autotune en cours...');
+
+  try {
+    const sourceArrayBuffer = await recordedAudioBlob.arrayBuffer();
+    const sourceAudioBuffer = await audioContext.decodeAudioData(sourceArrayBuffer);
+
+    tunedAudioBuffer = createAutotunedBuffer(sourceAudioBuffer, {
+      scale: scaleSelect.value,
+      strength: parseFloat(retuneSpeedSlider.value),
+    });
+
+    tunedAudioBlob = await audioBufferToWavBlob(tunedAudioBuffer);
+    const tunedUrl = URL.createObjectURL(tunedAudioBlob);
+    downloadLink.href = tunedUrl;
+    downloadLink.classList.remove('hidden');
+
     playBtn.disabled = false;
-    stopBtn.disabled = true;
-    recordBtn.disabled = false;
-}
+    setStatus('Autotune prêt : écoute et téléchargement disponibles.');
+  } catch (error) {
+    console.error(error);
+    setStatus('Erreur pendant le traitement. Réessaie avec un enregistrement plus court.');
+  } finally {
+    setProcessingState(false);
+  }
+});
 
-// --- Autotune AudioWorklet Concept ---
-// Native WebAudio ne possède pas de PitchShifter temps réel sans modifier la vitesse.
-// L'autotune nécessite: 1. Pitch Detection (YIN/AMDF) 2. Pitch Shifting (Phase Vocoder / PSOLA)
-// Vu la complexité de l'implémentation d'un Vocoder en JS pur depuis zéro dans ce contexte,
-// nous allons simuler un noeud de traitement qui représente là où la logique s'injecterait.
-// Dans un projet de production de haute qualité, on importerait des librairies comme SoundTouchJS, ou un module WebAssembly (WASM).
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
 
-const autotuneWorkletCode = `
-class AutotuneProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this.scale = 'chromatic';
-    this.retuneSpeed = 0.5;
-
-    this.port.onmessage = (event) => {
-      if (event.data.type === 'updateParams') {
-        this.scale = event.data.scale;
-        this.retuneSpeed = event.data.retuneSpeed;
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
       }
     };
-  }
 
-  // Fonction factice pour la détection de pitch
-  detectPitch(buffer) {
-    // Dans la réalité: implémentation de l'algorithme YIN, McLeod, etc.
-    return 440; // Retourne un A4 constant pour la démo
-  }
-
-  // Fonction factice de correction vers la gamme la plus proche
-  getClosestNote(pitch, scale) {
-     // Logique de map vers Majeur/Mineur
-     return pitch;
-  }
-
-  process(inputs, outputs, parameters) {
-    const input = inputs[0];
-    const output = outputs[0];
-
-    if (!input || !input[0]) return true;
-
-    // Simulation de traitement par bloc
-    for (let channel = 0; channel < input.length; ++channel) {
-      const inputChannel = input[channel];
-      const outputChannel = output[channel];
-
-      // Ici s'effectuerait la FFT ou PSOLA :
-      // 1. Détecter la fréquence du bloc
-      // 2. Trouver la note cible dans 'this.scale'
-      // 3. Appliquer le pitch shift en fonction de 'this.retuneSpeed'
-
-      // Pour l'instant, on fait un simple bypass (passe-bande / effet robot simple pourrait être ajouté ici)
-      for (let i = 0; i < inputChannel.length; ++i) {
-        outputChannel[i] = inputChannel[i];
-      }
-    }
-    return true;
-  }
-}
-
-registerProcessor('autotune-processor', AutotuneProcessor);
-`;
-
-// Remplacement de la fonction de lecture pour inclure l'AudioWorklet
-async function playAudioBuffer(buffer) {
-    sourceNode = audioContext.createBufferSource();
-    sourceNode.buffer = buffer;
-
-    gainNode = audioContext.createGain();
-    gainNode.gain.value = parseFloat(gainSlider.value);
-
-    try {
-        // Charger le worklet depuis un blob pour éviter les soucis CORS de fichiers locaux
-        const blob = new Blob([autotuneWorkletCode], { type: 'application/javascript' });
-        const workletUrl = URL.createObjectURL(blob);
-
-        await audioContext.audioWorklet.addModule(workletUrl);
-        const autotuneNode = new AudioWorkletNode(audioContext, 'autotune-processor');
-
-        // Mettre à jour les paramètres initiaux
-        autotuneNode.port.postMessage({
-            type: 'updateParams',
-            scale: scaleSelect.value,
-            retuneSpeed: parseFloat(retuneSpeedSlider.value)
-        });
-
-        // Ecouter les changements UI pendant la lecture
-        scaleSelect.onchange = (e) => {
-            autotuneNode.port.postMessage({ type: 'updateParams', scale: e.target.value, retuneSpeed: parseFloat(retuneSpeedSlider.value) });
-        };
-        retuneSpeedSlider.oninput = (e) => {
-            speedValue.textContent = Math.round(e.target.value * 100) + '%';
-            autotuneNode.port.postMessage({ type: 'updateParams', scale: scaleSelect.value, retuneSpeed: parseFloat(e.target.value) });
-        };
-
-        // Connexion : Source -> Autotune (Worklet) -> Gain -> Destination
-        sourceNode.connect(autotuneNode);
-        autotuneNode.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-    } catch(e) {
-        console.warn("AudioWorklet non supporté ou erreur de chargement. Fallback vers lecture normale.", e);
-        // Fallback si le worklet échoue
-        sourceNode.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-    }
-
-    sourceNode.onended = () => {
-        resetPlaybackUI();
+    mediaRecorder.onstop = () => {
+      recordedAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      tunedAudioBlob = undefined;
+      tunedAudioBuffer = undefined;
+      playBtn.disabled = true;
+      processBtn.disabled = false;
+      downloadLink.classList.add('hidden');
+      setStatus('Enregistrement terminé. Clique sur « Appliquer Autotune ».');
     };
 
-    sourceNode.start(0);
-    isPlaying = true;
+    mediaRecorder.start();
+    isRecording = true;
+    setStatus('Enregistrement en cours...');
 
-    // UI updates
+    recordBtn.textContent = "⬛ Arrêter l'enregistrement";
+    recordBtn.classList.add('recording');
+    recordingIndicator.classList.remove('hidden');
     playBtn.disabled = true;
-    stopBtn.disabled = false;
-    recordBtn.disabled = true;
+    stopBtn.disabled = true;
+    processBtn.disabled = true;
+    downloadLink.classList.add('hidden');
+  } catch (error) {
+    console.error(error);
+    alert("Impossible d'accéder au microphone. Autorise l'accès puis réessaie.");
+  }
 }
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+  }
+
+  isRecording = false;
+  recordBtn.textContent = '🔴 Nouvel enregistrement';
+  recordBtn.classList.remove('recording');
+  recordingIndicator.classList.add('hidden');
+}
+
+function playAudioBuffer(buffer) {
+  sourceNode = audioContext.createBufferSource();
+  sourceNode.buffer = buffer;
+
+  gainNode = audioContext.createGain();
+  gainNode.gain.value = parseFloat(gainSlider.value);
+
+  sourceNode.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  sourceNode.onended = () => {
+    resetPlaybackUI();
+  };
+
+  sourceNode.start(0);
+  isPlaying = true;
+  playBtn.disabled = true;
+  stopBtn.disabled = false;
+  recordBtn.disabled = true;
+}
+
+function createAutotunedBuffer(audioBuffer, options) {
+  const { scale, strength } = options;
+  const sampleRate = audioBuffer.sampleRate;
+  const channelCount = audioBuffer.numberOfChannels;
+  const output = audioContext.createBuffer(channelCount, audioBuffer.length, sampleRate);
+
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    const inputData = audioBuffer.getChannelData(channel);
+    const outputData = output.getChannelData(channel);
+    const normData = new Float32Array(audioBuffer.length);
+
+    for (let start = 0; start + FRAME_SIZE < inputData.length; start += HOP_SIZE) {
+      const frame = inputData.subarray(start, start + FRAME_SIZE);
+      const detectedPitch = detectPitch(frame, sampleRate);
+      const targetPitch = snapPitchToScale(detectedPitch, scale);
+
+      let ratio = 1;
+      if (detectedPitch > 0 && targetPitch > 0) {
+        const fullRatio = targetPitch / detectedPitch;
+        ratio = 1 + (fullRatio - 1) * strength;
+      }
+
+      for (let i = 0; i < FRAME_SIZE; i += 1) {
+        const readIndex = start + i * ratio;
+        const sample = sampleLinear(inputData, readIndex);
+        const window = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (FRAME_SIZE - 1));
+
+        if (start + i < outputData.length) {
+          outputData[start + i] += sample * window;
+          normData[start + i] += window;
+        }
+      }
+    }
+
+    for (let i = 0; i < outputData.length; i += 1) {
+      if (normData[i] > 0) {
+        outputData[i] /= normData[i];
+      }
+    }
+  }
+
+  return output;
+}
+
+function sampleLinear(buffer, index) {
+  const i0 = Math.floor(index);
+  const i1 = Math.min(i0 + 1, buffer.length - 1);
+  if (i0 < 0 || i0 >= buffer.length) {
+    return 0;
+  }
+  const frac = index - i0;
+  return buffer[i0] * (1 - frac) + buffer[i1] * frac;
+}
+
+function detectPitch(frame, sampleRate) {
+  const minFreq = 80;
+  const maxFreq = 1000;
+  const minLag = Math.floor(sampleRate / maxFreq);
+  const maxLag = Math.floor(sampleRate / minFreq);
+
+  let bestLag = -1;
+  let bestCorr = 0;
+
+  for (let lag = minLag; lag <= maxLag; lag += 1) {
+    let corr = 0;
+    for (let i = 0; i < frame.length - lag; i += 1) {
+      corr += frame[i] * frame[i + lag];
+    }
+
+    if (corr > bestCorr) {
+      bestCorr = corr;
+      bestLag = lag;
+    }
+  }
+
+  if (bestLag <= 0 || bestCorr < 0.01) {
+    return 0;
+  }
+
+  return sampleRate / bestLag;
+}
+
+function snapPitchToScale(pitch, scaleName) {
+  if (!pitch || pitch <= 0) {
+    return 0;
+  }
+
+  const allowedClasses = SCALE_CLASSES[scaleName] || SCALE_CLASSES.chromatic;
+  const midi = 69 + 12 * Math.log2(pitch / 440);
+  let bestMidi = Math.round(midi);
+  let smallestDiff = Number.POSITIVE_INFINITY;
+
+  for (let candidate = 24; candidate <= 96; candidate += 1) {
+    if (!allowedClasses.includes(candidate % 12)) {
+      continue;
+    }
+
+    const diff = Math.abs(candidate - midi);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      bestMidi = candidate;
+    }
+  }
+
+  return 440 * 2 ** ((bestMidi - 69) / 12);
+}
+
+async function audioBufferToWavBlob(buffer) {
+  const numberOfChannels = buffer.numberOfChannels;
+  const length = buffer.length * numberOfChannels * 2;
+  const wavBuffer = new ArrayBuffer(44 + length);
+  const view = new DataView(wavBuffer);
+
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + length, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numberOfChannels, true);
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * numberOfChannels * 2, true);
+  view.setUint16(32, numberOfChannels * 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, length, true);
+
+  let offset = 44;
+  for (let i = 0; i < buffer.length; i += 1) {
+    for (let channel = 0; channel < numberOfChannels; channel += 1) {
+      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([wavBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, text) {
+  for (let i = 0; i < text.length; i += 1) {
+    view.setUint8(offset + i, text.charCodeAt(i));
+  }
+}
+
+setStatus("Prêt : enregistre d'abord ta voix.");
